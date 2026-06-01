@@ -108,6 +108,6 @@ The helper script captures:
 
 ## Index of submitted reports
 
-| Report | CPU | OS | Python | Commit | Geomean speedup |
-|---|---|---|---|---|---|
-| _No reports submitted yet — be the first!_ | | | | | |
+| Report | CPU | RAM | OS | Python | Commit | Geomean speedup |
+|---|---|---|---|---|---| ---|
+| AMD64 Family 25 Model 68 Stepping 1 | AMD64 | 27.3 GB | Windows 11 | 3.14+freethreaded | `32a2ecd` | 2.28x |

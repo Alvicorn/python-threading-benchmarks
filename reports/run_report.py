@@ -299,7 +299,7 @@ def build_report(stdout: str, bench_sha: str, python_spec: str) -> str:
     out.append(f"# Benchmark Report — {cpu_short}")
     out.append("")
     out.append(f"- **Date:** {today}")
-    out.append(f"- **Benchmark commit:** `{bench_sha}` (tip of `benchmarks`)")
+    out.append(f"- **Benchmark commit:** `{bench_sha}`")
     out.append(f"- **Geomean speedup:** {gmean:.2f}×")
     out.append("")
     out.append("## Machine")
