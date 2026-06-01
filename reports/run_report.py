@@ -3,14 +3,12 @@ Run the benchmark suite against the `benchmarks` branch and emit a
 markdown report suitable for committing under ``reports/``.
 
 Usage:
-
-    git fetch && git checkout benchmarks && uv sync --python 3.14+freethreaded
+    uv sync --python 3.14+freethreaded
+    uv run --python 3.14+freethreaded pytest tests/ -q       # baseline
+    git switch -c benchmarks-<good-branch-name>              # feature branch
     uv run --python 3.14+freethreaded python reports/run_report.py \
-        --python 3.14+freethreaded
-    # → reports/<sha>-<arch>-<os>-<vendor>-<cores>-[freq-]<ram>-<py-tag>/README.md
-    # e.g. reports/44c6f37-amd64-windows-amd-8c16t-3.2ghz-27gb-py3.14ft/README.md
-    git checkout main
-    git add reports/<that-directory>/
+           --python 3.14+freethreaded
+    # reports/<sha>-<arch>-<os>-<vendor>-<cores>-[freq-]<ram>-<py-tag>/README.md
 
 The outer `--python` selects the interpreter that runs THIS script.
 The inner `--python` (required) selects the interpreter the benchmark
@@ -18,9 +16,11 @@ is measured against — they can differ when you want to compare builds.
 
 The `benchmarks` branch holds the stable benchmark code that all
 reports run against, so every report for the same benchmark snapshot
-quotes the same commit SHA. The script refuses to run if HEAD is not
-at the tip of `benchmarks`, and refuses to run if the target Python
-interpreter is not already installed.
+quotes the same commit SHA. The feature branch is created *off
+`benchmarks`* so HEAD still matches the tip of `benchmarks` when the
+script runs. The script refuses to run if HEAD is not at the tip of
+`benchmarks`, and refuses to run if the target Python interpreter is
+not already installed.
 """
 
 from __future__ import annotations
@@ -38,12 +38,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# Reuse the driver's spec loader so the report's `sync` column matches
-# each workload's BENCH_SPEC. We deliberately do NOT import
-# format_machine_info() here — the machine banner is captured from the
-# benchmark subprocess's stdout instead, so it reflects the *target*
-# interpreter the user asked for (which may differ from the one running
-# this script).
 from run_bench import discover_workloads, load_spec  # noqa: E402
 
 
@@ -62,12 +56,15 @@ def _git_rev_parse(ref: str) -> str | None:
 
 
 def resolve_benchmarks_sha() -> str | None:
-    """Return the short SHA of `benchmarks` (local first, then origin)."""
+    """
+    Return the short SHA of `benchmarks` (local first, then origin).
+    """
     return _git_rev_parse("benchmarks") or _git_rev_parse("origin/benchmarks")
 
 
 def gate_on_benchmarks_branch() -> str:
-    """Verify HEAD matches the tip of the `benchmarks` branch. Returns
+    """
+    Verify HEAD matches the tip of the `benchmarks` branch. Returns
     the short SHA of `benchmarks` on success; exits otherwise.
     """
     bench = resolve_benchmarks_sha()
@@ -85,21 +82,25 @@ def gate_on_benchmarks_branch() -> str:
             f"  benchmarks: {bench}\n"
             f"  HEAD:       {head}\n\n"
             "Run:\n"
-            "  git fetch && git checkout benchmarks && uv sync --python 3.14+freethreaded\n"
+            "  git fetch origin\n"
+            "  git switch benchmarks\n"
+            "  uv sync --python 3.14+freethreaded\n"
+            "  git switch -c benchmarks-<good-branch-name>\n"
             "  uv run --python 3.14+freethreaded python reports/run_report.py \\\n"
             "      --python 3.14+freethreaded\n"
-            "Then check the new report directory into `main`.\n"
+            "Then commit the new report directory + an index row and open a "
+            "PR from `benchmarks-<good-branch-name>` into `main`.\n"
         )
         raise SystemExit(2)
     return bench
 
 
 def verify_python_installed(spec: str) -> str:
-    """Confirm `uv` can resolve `spec` to an installed interpreter.
+    """
+    Confirm `uv` can resolve `spec` to an installed interpreter.
 
-    Returns the absolute path to that interpreter on success; writes a
-    helpful "install it first" message to stderr and exits non-zero
-    otherwise.
+    Returns the absolute path to that interpreter on success.
+    Exits non-zero otherwise.
     """
     try:
         proc = subprocess.run(
@@ -132,10 +133,11 @@ def verify_python_installed(spec: str) -> str:
 
 
 def extract_machine_block(stdout: str) -> str:
-    """Pull the leading machine banner from driver stdout.
+    """
+    Pull the leading machine banner from driver stdout.
 
     `run_bench.py` prints `format_machine_info()` first, then a blank
-    line. The banner ends at `Commit:` (5 lines today) or at the first
+    line. The banner ends at `Commit:` (5 lines) or at the first
     blank line, whichever comes first.
     """
     block: list[str] = []
@@ -149,7 +151,9 @@ def extract_machine_block(stdout: str) -> str:
 
 
 def parse_summary_rows(stdout: str) -> list[dict[str, str]]:
-    """Extract workload rows from the driver's `--mode both` summary table."""
+    """
+    Extract workload rows from the driver's `--mode both` summary table.
+    """
     lines = stdout.splitlines()
     start = None
     for i, line in enumerate(lines):
@@ -181,7 +185,9 @@ def parse_summary_rows(stdout: str) -> list[dict[str, str]]:
 
 
 def geomean_speedup(rows: list[dict[str, str]]) -> float:
-    """Geometric mean of the speedup column; skips non-finite entries."""
+    """
+    Geometric mean of the speedup column; skips non-finite entries.
+    """
     log_vals: list[float] = []
     for r in rows:
         try:
@@ -211,7 +217,9 @@ _VENDOR_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 
 
 def _cpu_vendor() -> str:
-    """Map `platform.processor()` to a short vendor tag for the dirname."""
+    """
+    Map `platform.processor()` to a short vendor tag for the dirname.
+    """
     raw = platform.processor() or ""
     for tag, pat in _VENDOR_PATTERNS:
         if pat.search(raw):
@@ -220,31 +228,27 @@ def _cpu_vendor() -> str:
 
 
 def _python_tag(spec: str) -> str:
-    """Map a `--python SPEC` to a short tag for the dirname.
-
-    Examples: '3.14+freethreaded' → 'py3.14ft', '3.13' → 'py3.13',
-    '3.13t' → 'py3.13ft', '/usr/bin/python3.13' → 'py3.13'.
-    Falls back to 'py-custom' if no 3.x version is detectable.
     """
-    m = re.search(r"3\.\d+", spec)
-    if not m:
-        return "py-custom"
-    ver = m.group(0)
-    ft = "+freethreaded" in spec or re.search(r"3\.\d+t\b", spec) is not None
-    return f"py{ver}{'ft' if ft else ''}"
+    Use the `--python SPEC` exactly as the user passed it on the CLI.
+
+    The only transformation is filesystem-safety: path separators are
+    swapped for `_` so a spec like `/usr/bin/python3.13` doesn't end up
+    creating nested directories. Everything else (including the `+` in
+    `3.14+freethreaded`) is preserved as-is.
+    """
+    return spec.replace("/", "_").replace("\\", "_")
 
 
 def auto_dirname(bench_sha: str, python_spec: str) -> str:
-    """Build a readable, machine-distinguishing report directory name.
+    """
+    Build a readable, machine-distinguishing report directory name.
 
     Shape: `<bench-sha>-<arch>-<os>-<vendor>-<cores>-[freq-]<ram>-<py-tag>`,
     e.g. `44c6f37-amd64-windows-amd-8c16t-3.2ghz-27gb-py3.14ft`.
 
-    Same machine + same Python → same dirname (so a re-run cleanly
+    Same machine + same Python -> same dirname (so a re-run cleanly
     overwrites the previous report). Different CPU vendor / cores /
-    freq / RAM / Python build → different dirname. `<freq>` is dropped
-    entirely if `psutil.cpu_freq()` can't report a max clock so we
-    don't pollute names with `unkghz`.
+    freq / RAM / Python build -> different dirname.
     """
     arch = (platform.machine() or "unkarch").lower()
     osys = (platform.system() or "unkos").lower()
@@ -295,7 +299,7 @@ def build_report(stdout: str, bench_sha: str, python_spec: str) -> str:
     out.append(f"# Benchmark Report — {cpu_short}")
     out.append("")
     out.append(f"- **Date:** {today}")
-    out.append(f"- **Benchmark commit:** `{bench_sha}` (tip of `benchmarks`)")
+    out.append(f"- **Benchmark commit:** `{bench_sha}`")
     out.append(f"- **Geomean speedup:** {gmean:.2f}×")
     out.append("")
     out.append("## Machine")
@@ -338,7 +342,8 @@ def build_report(stdout: str, bench_sha: str, python_spec: str) -> str:
 
 
 def _resolve_output_path(arg: str, bench_sha: str) -> Path | None:
-    """Translate the --output argument into a concrete file path.
+    """
+    Translate the --output argument into a concrete file path.
 
     Returns None for stdout. A directory-like argument (or the default)
     becomes `<dir>/README.md`.
@@ -383,7 +388,9 @@ def main() -> int:
         help=(
             "Output path: '-' for stdout, a directory for "
             "<dir>/README.md, or an explicit .md path. Defaults to "
-            "reports/<bench-sha>-<arch>-<os>/README.md."
+            "reports/<bench-sha>-<arch>-<os>-<vendor>-<cores>-"
+            "[freq-]<ram>-<py-spec>/README.md (see reports/README.md "
+            "for the segment legend)."
         ),
     )
     args = p.parse_args()
@@ -408,24 +415,42 @@ def main() -> int:
         cmd += ["--benchmarks", args.benchmarks]
 
     sys.stderr.write(f"Running: {' '.join(cmd)}\n")
+    sys.stderr.write("----\n")
+
     # Force the subprocess to emit UTF-8 so the driver's `×` chars round-trip
     # cleanly on Windows (default code page is cp1252).
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    proc = subprocess.run(
+
+    # Stream stdout line-by-line so the contributor sees per-workload progress,
+    # while also capturing the full text for `build_report()` to parse.
+    captured: list[str] = []
+    proc = subprocess.Popen(  # noqa: S603
         cmd,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
         errors="replace",
         env=env,
-        check=False,
+        bufsize=1,  # line-buffered
     )
-    if proc.returncode != 0:
-        sys.stderr.write(proc.stderr)
-        return proc.returncode
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        sys.stderr.write(line)
+        sys.stderr.flush()
+        captured.append(line)
+    return_code = proc.wait()
+    err_tail = (proc.stderr.read() if proc.stderr else "") or ""
 
-    report = build_report(proc.stdout, bench_sha, args.python)
+    sys.stderr.write("----\n")
+
+    if return_code != 0:
+        sys.stderr.write(err_tail)
+        return return_code
+
+    full_stdout = "".join(captured)
+    report = build_report(full_stdout, bench_sha, args.python)
 
     # Default output path: reports/<auto-dirname>/README.md
     default_dir = ROOT / "reports" / auto_dirname(bench_sha, args.python)

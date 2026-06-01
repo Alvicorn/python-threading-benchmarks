@@ -52,9 +52,9 @@ In this example we will use `3.14+freethreaded` as the python version.
 4. `git switch -c benchmarks-<good-branch-name>`. Pick a name that identifies your machine
     + Python build. If you can't decide, the auto-generated report directory (see step 5)
     makes a fine fallback. Examples:
-   `benchmarks-amd-8c16t-py3.14ft`,
-   `benchmarks-intel-12c-py3.13`,
-   `benchmarks-44c6f37-amd64-windows-amd-8c16t-3.2ghz-27gb-py3.14ft`.
+   `benchmarks-amd-8c16t-3.14+freethreaded`,
+   `benchmarks-intel-12c-3.13`,
+   `benchmarks-44c6f37-amd64-windows-amd-8c16t-3.2ghz-27gb-3.14+freethreaded`.
 5. Generate the report. The required `--python` flag picks which interpreter is measured.
    The outer `--python` only controls which Python runs the report script itself:
 
@@ -66,7 +66,7 @@ In this example we will use `3.14+freethreaded` as the python version.
    The script auto-creates a directory whose name describes both the
    benchmark snapshot and the machine being benchmarked, e.g.
 
-   `reports/44c6f37-amd64-windows-amd-8c16t-3.2ghz-27gb-py3.14ft/README.md`
+   `reports/44c6f37-amd64-windows-amd-8c16t-3.2ghz-27gb-3.14+freethreaded/README.md`
 
    Segments, in order:
 
@@ -79,7 +79,7 @@ In this example we will use `3.14+freethreaded` as the python version.
    | `8c16t` | 8 physical / 16 logical cores |
    | `3.2ghz` | max CPU clock (omitted if `psutil` can't report it) |
    | `27gb` | total physical RAM, rounded |
-   | `py3.14ft` | the `--python` flag — `py3.14ft` is 3.14 free-threaded, `py3.13` is 3.13 GIL'd, `py-custom` for anything else |
+   | `3.14+freethreaded` | the `--python` flag, verbatim — e.g. `3.14+freethreaded`, `3.13`, `3.14`, etc. (path separators replaced with `_`) |
 
    Re-running on the same machine with the same Python overwrites the
    same directory. A different CPU vendor / core count / RAM / Python
@@ -108,6 +108,6 @@ The helper script captures:
 
 ## Index of submitted reports
 
-| Report | CPU | OS | Python | Commit | Geomean speedup |
-|---|---|---|---|---|---|
-| _No reports submitted yet — be the first!_ | | | | | |
+| Report | CPU | RAM | OS | Python | Commit | Geomean speedup |
+|---|---|---|---|---|---| ---|
+| AMD64 Family 25 Model 68 Stepping 1 | AMD64 | 27.3 GB | Windows 11 | 3.14+freethreaded | `32a2ecd` | 2.28x |

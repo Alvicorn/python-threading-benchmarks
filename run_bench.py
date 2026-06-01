@@ -555,6 +555,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
+    # Line-buffer stdout so per-workload progress lines appear *live*
+    # even when stdout is piped (e.g. when reports/run_report.py captures
+    # the output). Without this, Python block-buffers piped stdout and
+    # the contributor sees nothing until ~all 24 workloads finish.
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if callable(reconfigure):
+        reconfigure(line_buffering=True)
+
     all_w = discover_workloads()
     if args.benchmarks.strip():
         wanted = [w.strip() for w in args.benchmarks.split(",") if w.strip()]
@@ -591,7 +599,15 @@ def main(argv: list[str] | None = None) -> int:
 
     stats_list: list[WorkloadStats] = []
     done = 0
-    for w, spec in zip(workloads, specs, strict=True):
+    for wi, (w, spec) in enumerate(zip(workloads, specs, strict=True), 1):
+        if not args.verbose:
+            # One-line "starting" indicator so the user sees progress
+            # even before this workload's last run finishes. The matching
+            # "done" line is `_print_workload_oneliner` below.
+            # ASCII arrow so direct stdout encoding (e.g. Windows cp1252)
+            # doesn't choke when run_bench.py is invoked without
+            # PYTHONIOENCODING=utf-8.
+            print(f"-> [{wi}/{len(workloads)}] {w:<20} ", end="", flush=True)
         ws = WorkloadStats(workload=w, spec=spec)
         for mode in modes:
             runs: list[RunResult] = []
@@ -651,7 +667,10 @@ def main(argv: list[str] | None = None) -> int:
 def _print_workload_oneliner(
     ws: WorkloadStats, modes: tuple[str, ...]
 ) -> None:
-    parts = [f"  {ws.workload:<22}"]
+    """
+    Print the per-workload completion line.
+    """
+    parts: list[str] = []
     failed = False
     for m in modes:
         ms = ws.modes[m]
@@ -666,7 +685,7 @@ def _print_workload_oneliner(
         )
     if ws.checksum_divergence:
         parts.append("CHECKSUM DIVERGENCE")
-    print("  ".join(parts))
+    print("  ".join(parts), flush=True)
 
 
 if __name__ == "__main__":
