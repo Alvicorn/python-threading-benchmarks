@@ -50,11 +50,11 @@ In this example we will use `3.14+freethreaded` as the python version.
    (`uv python install 3.14+freethreaded` or whichever version you
    choose).
 4. `git switch -c benchmarks-<good-branch-name>`. Pick a name that identifies your machine
-    + Python build. If you can't decide, the auto-generated report directory (see step 5) 
+    + Python build. If you can't decide, the auto-generated report directory (see step 5)
     makes a fine fallback. Examples:
    `benchmarks-amd-8c16t-py3.14ft`,
    `benchmarks-intel-12c-py3.13`,
-   `benchmarks-44c6f37-amd64-windows-amd-8c16t-3.2ghz-27gb-py3.14ft`. 
+   `benchmarks-44c6f37-amd64-windows-amd-8c16t-3.2ghz-27gb-py3.14ft`.
 5. Generate the report. The required `--python` flag picks which interpreter is measured.
    The outer `--python` only controls which Python runs the report script itself:
 
