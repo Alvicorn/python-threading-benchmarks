@@ -1,0 +1,20 @@
+[project]
+name = "python-threading-benchmarks"
+version = "0.1.0"
+description = "Benchmark suite for free-threaded Python"
+readme = "README.md"
+requires-python = ">=3.14"
+
+dependencies = [
+    "psutil>=5.9",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-timeout>=2.3",
+    "pre-commit>=4.0",
+]
