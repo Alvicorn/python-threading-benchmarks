@@ -109,5 +109,6 @@ The helper script captures:
 ## Index of submitted reports
 
 | Report | CPU | RAM | OS | Python | Commit | Geomean speedup |
-|---|---|---|---|---|---| ---|
-| AMD64 Family 25 Model 68 Stepping 1 | AMD64 | 27.3 GB | Windows 11 | 3.14+freethreaded | `32a2ecd` | 2.28x |
+|---|---|---|---|---|---|---|
+| AMD64 Family 25 Model 68 Stepping 1 | AMD Ryzen 7 | 27.3 GB | Windows 11 | 3.14+freethreaded | `32a2ecd` | 2.28x |
+| Intel64 Family 6 Model 170 Stepping 4 | Intel Core Ultra 7 | 31.5 GB | Windows 11 | 3.14+freethreaded | `32a2ecd` | 1.69x |
