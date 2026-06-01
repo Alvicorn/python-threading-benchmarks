@@ -2,13 +2,13 @@
 
 A focused collection of multi-threaded Python benchmarks designed to
 characterize free-threaded Python (no-GIL) performance. 24 workloads
-covering every `threading` synchronization primitive: Lock, RLock, 
-Event, Condition, Semaphore, BoundedSemaphore, Barrier, plus 
+covering every `threading` synchronization primitive: Lock, RLock,
+Event, Condition, Semaphore, BoundedSemaphore, Barrier, plus
 `queue.Queue` / `queue.PriorityQueue`
 (layered on Condition + Lock).
 
 Each workload runs in both **parallel** and **same-total-work serial**
-mode; the driver reports `speedup = serial / parallel`. 
+mode; the driver reports `speedup = serial / parallel`.
 
 ## Layout
 
@@ -20,28 +20,52 @@ tests/              correctness + determinism + driver unit tests
 
 Per-workload algorithm references live in
 [workloads/README.md](workloads/README.md), grouped by Python sync primitive.
+Contributed benchmark runs from different machines live in
+[reports/](reports/README.md) — PRs welcome.
 
 ## Requirements
 
 - `uv` for environment management.
 - `psutil` (declared in `pyproject.toml`); used for peak-RSS on Windows.
 
+## Python versions
+
+The suite runs on any CPython **3.13+**, GIL'd or free-threaded.
+Free-threaded is what the benchmark is designed to characterise — on a
+GIL'd build most speedups will hover around 1× and that's the expected
+result. Each `run_bench.py` invocation prints the actual interpreter
+(implementation, version, free-threaded yes/no) at the top of stdout.
+
+The canonical build for the published numbers is **CPython 3.14
+free-threaded** (what CI uses). To get it locally:
+
+```sh
+uv python install 3.14+freethreaded
+uv sync --python 3.14+freethreaded
+```
+
+All `uv` command examples in this repository pass `--python
+3.14+freethreaded` explicitly so the canonical interpreter is used
+regardless of `UV_PYTHON` / `.python-version` / shell state. Substitute
+another version (e.g. `--python 3.13`) if you want to compare
+interpreter builds.
+
 ## Quick start
 
 ```sh
-uv sync
+uv sync --python 3.14+freethreaded
 
 # List all workloads with their BENCH_SPEC:
-uv run python run_bench.py --list
+uv run --python 3.14+freethreaded python run_bench.py --list
 
 # Run the full suite (24 workloads × 5 runs × serial+parallel):
-uv run python run_bench.py
+uv run --python 3.14+freethreaded python run_bench.py
 
 # Parallel only, 3 runs, verbose:
-uv run python run_bench.py --mode parallel --runs 3 -v
+uv run --python 3.14+freethreaded python run_bench.py --mode parallel --runs 3 -v
 
 # Smoke run (small problem sizes, ~10× smaller):
-uv run python run_bench.py --smoke
+uv run --python 3.14+freethreaded python run_bench.py --smoke
 ```
 
 ## Output
@@ -92,7 +116,7 @@ coverage, not "everything scales".
 ## Running tests
 
 ```sh
-uv run pytest tests/ -v
+uv run --python 3.14+freethreaded pytest tests/ -v
 ```
 
 Tests set `BENCH_SMOKE=1` so problem sizes shrink ~10×. Every workload
@@ -115,5 +139,6 @@ same command on every push and PR to `main`.
    `tests/test_workloads_correct.py` as the golden value.
 7. Add a section to [workloads/README.md](workloads/README.md) with
    curated tutorial links for the algorithm.
-8. Run `uv run pytest tests/` and `uv run pre-commit run --all-files`
-   and confirm both pass.
+8. Run `uv run --python 3.14+freethreaded pytest tests/` and
+   `uv run --python 3.14+freethreaded pre-commit run --all-files` and
+   confirm both pass.

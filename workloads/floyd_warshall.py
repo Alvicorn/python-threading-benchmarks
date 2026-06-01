@@ -1,7 +1,7 @@
 """
 Floyd-Warshall all-pairs shortest paths, NUM_THREADS-way parallel on the `i` dim.
 
-For each k: NUM_THREADS partition the i loop. Each thread reads 
+For each k: NUM_THREADS partition the i loop. Each thread reads
 dist[i][k], dist[k][j], and writes dist[i][j]. Barrier
 between k-iterations.
 """

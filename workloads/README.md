@@ -5,7 +5,8 @@ grouped by the `threading` synchronization primitive it features.
 
 Every workload also has a `BENCH_SPEC` dict at the top of its module
 documenting `num_threads`, `sync`, and `work_units`; run
-`uv run python run_bench.py --list` to see them all at once.
+`uv run --python 3.14+freethreaded python run_bench.py --list` to see
+them all at once.
 
 ---
 

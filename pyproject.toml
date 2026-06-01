@@ -3,7 +3,7 @@ name = "python-threading-benchmarks"
 version = "0.1.0"
 description = "Benchmark suite for free-threaded Python"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 
 dependencies = [
     "psutil>=5.9",

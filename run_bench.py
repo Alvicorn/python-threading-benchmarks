@@ -20,9 +20,11 @@ import importlib
 import json
 import math
 import os
+import platform
 import statistics
 import subprocess
 import sys
+import sysconfig
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,6 +34,85 @@ ROOT = Path(__file__).resolve().parent
 WORKLOADS_DIR = ROOT / "workloads"
 
 MODES = ("parallel", "serial")
+
+
+###################
+# MACHINE BANNER  #
+###################
+
+
+def _git_short_sha() -> str:
+    """Return short HEAD SHA, or 'unknown' if git isn't available."""
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            timeout=5,
+            check=False,
+        )
+    except FileNotFoundError, subprocess.TimeoutExpired:
+        return "unknown"
+    if proc.returncode != 0:
+        return "unknown"
+    return proc.stdout.strip() or "unknown"
+
+
+def _free_threaded() -> bool:
+    """Best-effort detection of a free-threaded CPython build."""
+    if sysconfig.get_config_var("Py_GIL_DISABLED"):
+        return True
+    is_enabled = getattr(sys, "_is_gil_enabled", None)
+    if callable(is_enabled):
+        return not is_enabled()
+    return False
+
+
+def format_machine_info() -> str:
+    """Multi-line banner: CPU, arch, cores+freq, RAM, OS, Python, commit SHA."""
+    cores_str = "? cores"
+    freq_str = ""
+    ram_str = "? RAM"
+    try:
+        import psutil  # type: ignore[import-not-found]
+
+        phys = psutil.cpu_count(logical=False) or 0
+        logical = psutil.cpu_count(logical=True) or 0
+        cores_str = f"{phys}P / {logical}L cores"
+        # `.total` = max physical RAM installed (in bytes). Deliberately
+        # NOT `.available` / `.free` — those fluctuate with load and we
+        # want to report the machine's capacity, not its current state.
+        ram_gb = psutil.virtual_memory().total / (1024**3)
+        ram_str = f"{ram_gb:.1f} GB RAM"
+        # `cpu_freq()` returns scpufreq(current, min, max) in MHz, or
+        # None on platforms without cpufreq (some Linux containers).
+        freq = psutil.cpu_freq()
+        if freq is not None:
+            mhz = freq.max or freq.current or 0
+            if mhz:
+                freq_str = f" @ {mhz / 1000:.2f} GHz"
+    except Exception:
+        pass
+
+    cpu = platform.processor() or "unknown CPU"
+    arch = platform.machine() or "unknown-arch"
+    os_str = f"{platform.system()} {platform.release()} ({platform.version()})"
+    py_str = (
+        f"{platform.python_implementation()} {platform.python_version()} "
+        f"(free-threaded: {'yes' if _free_threaded() else 'no'})"
+    )
+
+    return "\n".join(
+        [
+            f"Machine: {cpu}",
+            f"Arch:    {arch} | {cores_str}{freq_str} | {ram_str}",
+            f"OS:      {os_str}",
+            f"Python:  {py_str}",
+            f"Commit:  {_git_short_sha()}",
+        ]
+    )
+
 
 ##########
 # models #
@@ -499,6 +580,8 @@ def main(argv: list[str] | None = None) -> int:
 
     modes: tuple[str, ...] = MODES if args.mode == "both" else (args.mode,)
     total = len(workloads) * args.runs * len(modes)
+    print(format_machine_info())
+    print()
     print(
         f"Running {len(workloads)} workload(s) × {args.runs} run(s) × "
         f"{len(modes)} mode(s) ({','.join(modes)}) = {total} subprocess(es); "
